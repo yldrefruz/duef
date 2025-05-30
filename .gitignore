@@ -1,0 +1,4 @@
+.vscode/
+build/
+test/
+compile_commands.json
