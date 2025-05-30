@@ -271,6 +271,7 @@ int main(int argc, char *argv[])
         char directory_path[2048];
         resolve_app_directory_path(read_file->file_header->directory_name, directory_path, sizeof(directory_path));
         printf("%s\n", directory_path); // print the directory path to the standard output for piping
+        fflush(stdout);                 // Ensure the output is flushed immediately
     }
     free(decompressed);
     decompressed = NULL;
