@@ -24,6 +24,8 @@ int g_is_verbose = false;
 int g_print_mode_file = false;
 char *file_path = NULL;
 
+void print_usage(const char *program_name);
+
 void parse_arguments(int argc, char **argv)
 {
     // add support for gnu style combinable options
@@ -58,7 +60,8 @@ void parse_arguments(int argc, char **argv)
                     }
                     else
                     {
-                        fprintf(stderr, "Option -f requires an argument\n");
+                        fprintf(stderr, "Option -f requires an argument\n\n");
+                        print_usage(argv[0]);
                         exit(EXIT_FAILURE);
                     }
                     break;
@@ -66,8 +69,13 @@ void parse_arguments(int argc, char **argv)
                     g_print_mode_file = true;
                     print_verbose("Print mode file enabled.\n");
                     break;
+                case 'h':
+                    print_usage(argv[0]);
+                    exit(EXIT_SUCCESS);
+                    break;
                 default:
-                    fprintf(stderr, "Unknown option: -%c\n", argv[i][j]);
+                    fprintf(stderr, "Unknown option: -%c\n\n", argv[i][j]);
+                    print_usage(argv[0]);
                     exit(EXIT_FAILURE);
                 }
             }
@@ -94,9 +102,15 @@ void parse_arguments(int argc, char **argv)
                 }
                 else
                 {
-                    fprintf(stderr, "Option --file requires an argument\n");
+                    fprintf(stderr, "Option --file requires an argument\n\n");
+                    print_usage(argv[0]);
                     exit(EXIT_FAILURE);
                 }
+            }
+            else if (strcmp(argv[i], "--help") == 0)
+            {
+                print_usage(argv[0]);
+                exit(EXIT_SUCCESS);
             }
             else if (strcmp(argv[i], "--clean") == 0)
             {
@@ -108,7 +122,28 @@ void parse_arguments(int argc, char **argv)
             }
             else
             {
-                fprintf(stderr, "Unknown option: %s\n", argv[i]);
+                fprintf(stderr, "Unknown option: %s\n\n", argv[i]);
+                print_usage(argv[0]);
+                exit(EXIT_FAILURE);
+            }
+        }
+        else
+        {
+            // Handle positional arguments (non-option arguments)
+            if (file_path == NULL)
+            {
+                file_path = strdup(argv[i]);
+                if (!file_path)
+                {
+                    fprintf(stderr, "Memory allocation failed for file path\n");
+                    exit(EXIT_FAILURE);
+                }
+                print_verbose("File path set to: %s\n", file_path);
+            }
+            else
+            {
+                fprintf(stderr, "Multiple file arguments provided. Only one file can be processed at a time.\n\n");
+                print_usage(argv[0]);
                 exit(EXIT_FAILURE);
             }
         }
@@ -122,6 +157,27 @@ void cleanup_arguments()
         free(file_path);
         file_path = NULL;
     }
+}
+
+void print_usage(const char *program_name)
+{
+    printf("duef - Unreal Engine Crash File Decompressor\n\n");
+    printf("Usage: %s [OPTIONS] [file]\n\n", program_name);
+    printf("Options:\n");
+    printf("  -h, --help        Show this help message and exit\n");
+    printf("  -v, --verbose     Enable verbose output to stderr\n");
+    printf("  -f, --file FILE   Specify .uecrash file to process\n");
+    printf("  -i                Print individual file paths instead of directory path\n");
+    printf("      --clean       Remove all extracted files from ~/.duef directory\n\n");
+    printf("Examples:\n");
+    printf("  %s CrashReport.uecrash     # Decompress crash file\n", program_name);
+    printf("  %s -v -f crash.uecrash     # Decompress with verbose output\n", program_name);
+    printf("  %s -i crash.uecrash        # Print individual file paths\n", program_name);
+    printf("  %s --clean                 # Clean up extracted files\n\n", program_name);
+    printf("Output:\n");
+    printf("  On Unix: Files extracted to ~/.duef/<directory>/\n");
+    printf("  On Windows: Files extracted to %%LocalAppData%%\\duef\\<directory>\\\n");
+    printf("  Default file: CrashFile.uecrash (if no file specified)\n");
 }
 
 void write_file(const FAnsiCharStr *directory, const FFile *file);
