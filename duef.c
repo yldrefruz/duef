@@ -8,14 +8,16 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
-#if _WIN32
+#ifdef _WIN32
 #include <windows.h> // For Windows-specific functions
 #include <direct.h>  // For _mkdir
+#include <io.h>      // For file operations
+#ifndef PATH_MAX
+#define PATH_MAX MAX_PATH
+#endif
 #else
 #include <sys/stat.h> // For mkdir
-#include <sys/types.h>
 #include <limits.h> // For PATH_MAX
-#include <unistd.h> // For getcwd
 #endif
 #include <errno.h>
 #include "stdbool.h"
@@ -307,7 +309,7 @@ int main(int argc, char *argv[])
             resolve_app_file_path(read_file->file_header->directory_name, &read_file->file[i], file_buffer, sizeof(file_buffer));
             if (i > 0)
             {
-                strcat(files_combine_buffer, " ");
+                strncat(files_combine_buffer, " ", sizeof(files_combine_buffer) - strlen(files_combine_buffer) - 1);
             }
             if (strchr(file_buffer, ' ') != NULL || strchr(file_buffer, '\n') != NULL || strchr(file_buffer, '\t') != NULL)
             {
@@ -316,12 +318,12 @@ int main(int argc, char *argv[])
                 size_t path_len = strlen(file_buffer);
                 if (path_len < sizeof(temp_buffer) - 3) // -3 for quotes and null terminator
                 {
-                    snprintf(temp_buffer, sizeof(temp_buffer), "\"%s\"", file_buffer);
+                    (void)snprintf(temp_buffer, sizeof(temp_buffer), "\"%s\"", file_buffer);
                     strncpy(file_buffer, temp_buffer, sizeof(file_buffer) - 1);
                     file_buffer[sizeof(file_buffer) - 1] = '\0';
                 }
             }
-            strcat(files_combine_buffer, file_buffer);
+            strncat(files_combine_buffer, file_buffer, sizeof(files_combine_buffer) - strlen(files_combine_buffer) - 1);
             files_combine_length += strlen(file_buffer) + 1; // +1 for the space or null terminator
         }
     }
@@ -335,7 +337,7 @@ int main(int argc, char *argv[])
         resolve_app_directory_path(read_file->file_header->directory_name, directory_path, sizeof(directory_path));
         printf("%s\n", directory_path); // print the directory path to the standard output for piping
     }
-    fflush(stdout); // Ensure the output is flushed immediately
+    (void)fflush(stdout); // Ensure the output is flushed immediately
     free(decompressed);
     decompressed = NULL;
     UECrashFile_Destroy(read_file);
@@ -349,7 +351,7 @@ void resolve_app_directory_path(const FAnsiCharStr *directory_name, char *buffer
 #ifdef _WIN32
     snprintf(buffer, buffer_size, "%s\\%.*s", get_app_directory(), directory_name->length, directory_name->content);
 #else
-    snprintf(buffer, buffer_size, "%s/%.*s", get_app_directory(), directory_name->length, directory_name->content);
+    (void)snprintf(buffer, buffer_size, "%s/%.*s", get_app_directory(), directory_name->length, directory_name->content);
 #endif
 }
 
@@ -358,7 +360,7 @@ void resolve_app_file_path(const FAnsiCharStr *directory, const FFile *file, cha
 #ifdef _WIN32
     snprintf(buffer, buffer_size, "%s\\%s\\%.*s", get_app_directory(), directory->content, directory->length, file->file_name->content);
 #else
-    snprintf(buffer, buffer_size, "%s/%s/%.*s", get_app_directory(), directory->content, directory->length, file->file_name->content);
+    (void)snprintf(buffer, buffer_size, "%s/%s/%.*s", get_app_directory(), directory->content, directory->length, file->file_name->content);
 #endif
 }
 
@@ -382,23 +384,19 @@ void write_file(const FAnsiCharStr *directory, const FFile *file)
     {
         fprintf(stderr, "Error writing to output file\n");
     }
-    fclose(output_file);
+    (void)fclose(output_file);
 }
 bool g_cached_app_directory = false;
-#ifdef _WIN32
-char g_app_directory[MAX_PATH] = {0};
-#else
 char g_app_directory[PATH_MAX] = {0};
-#endif
 
 char *get_app_directory()
 {
     if (!g_cached_app_directory)
     {
 #ifdef _WIN32
-        snprintf(g_app_directory, sizeof(g_app_directory), "%s\\duef", getenv("LOCALAPPDATA"));
+        (void)snprintf(g_app_directory, sizeof(g_app_directory), "%s\\duef", getenv("LOCALAPPDATA"));
 #else
-        snprintf(g_app_directory, sizeof(g_app_directory), "%s/.duef", getenv("HOME"));
+        (void)snprintf(g_app_directory, sizeof(g_app_directory), "%s/.duef", getenv("HOME"));
 #endif
     }
     return g_app_directory;
@@ -407,15 +405,14 @@ char *get_app_directory()
 // maybe make it so we use the mkdir command with system() instead of using the mkdir function directly
 void create_crash_directory(FAnsiCharStr *directory_name)
 {
-#ifdef _WIN32
-    char dir_path[MAX_PATH];
-    snprintf(dir_path, sizeof(dir_path), "%s\\%.*s", get_app_directory(), directory_name->length, directory_name->content);
-    print_verbose("Creating directory: %s\n", dir_path);
-#else
     char dir_path[PATH_MAX];
-    snprintf(dir_path, sizeof(dir_path), "%s/%.*s", get_app_directory(), directory_name->length, directory_name->content);
-    print_verbose("Creating directory: %s\n", dir_path);
+#ifdef _WIN32
+    (void)snprintf(dir_path, sizeof(dir_path), "%s\\%.*s", get_app_directory(), directory_name->length, directory_name->content);
+#else
+    (void)snprintf(dir_path, sizeof(dir_path), "%s/%.*s", get_app_directory(), directory_name->length, directory_name->content);
 #endif
+    print_verbose("Creating directory: %s\n", dir_path);
+
 #ifdef _WIN32
     if (_mkdir(get_app_directory()) == -1 && errno != EEXIST)
     {
@@ -428,6 +425,7 @@ void create_crash_directory(FAnsiCharStr *directory_name)
         return;
     }
 #else
+    mkdir(get_app_directory(), 0755);  // Create parent directory first
     mkdir(dir_path, 0755);
 #endif
 }
@@ -437,11 +435,11 @@ void delete_crash_collection_directory()
 {
 #ifdef _WIN32
     char command_buffer[1024];
-    sprintf(command_buffer, "rmdir /S /Q \"%s\"", get_app_directory());
+    (void)snprintf(command_buffer, sizeof(command_buffer), "rmdir /S /Q \"%s\"", get_app_directory());
     system(command_buffer);
 #else
     char command_buffer[1024];
-    snprintf(command_buffer, sizeof(command_buffer), "rm -r \"%s\"", get_app_directory());
+    (void)snprintf(command_buffer, sizeof(command_buffer), "rm -r \"%s\"", get_app_directory());
     system(command_buffer); // no forcing here, be careful to not remove root
 #endif
 }

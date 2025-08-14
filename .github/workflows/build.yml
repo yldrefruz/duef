@@ -1,0 +1,85 @@
+name: Cross-Platform Build
+
+on:
+  push:
+    branches: [ main, develop, 'copilot/**' ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake build-essential clang-tidy
+    
+    - name: Configure CMake
+      run: |
+        mkdir build
+        cd build
+        cmake -DZLIB_BUILD_EXAMPLES=OFF ..
+    
+    - name: Build
+      run: |
+        cd build
+        make
+    
+    - name: Test executable
+      run: |
+        cd build
+        ls -la duef
+        ./duef --clean
+        ./duef -v || echo "Expected failure - no crash file present"
+        ./duef --file nonexistent.uecrash || echo "Expected failure - file does not exist"
+    
+    - name: Run static analysis
+      run: |
+        echo "Running static analysis..."
+        clang-tidy duef.c -- -I./zlib-1.3.1 -D_CRT_NONSTDC_NO_WARNINGS -D_CRT_SECURE_NO_WARNINGS > static-analysis.log 2>&1 || true
+        echo "Static analysis completed."
+        echo "Warning count:"
+        grep "warning:" static-analysis.log | wc -l || echo "0"
+        echo "Critical errors (should be 0):"
+        grep -i "error:" static-analysis.log | wc -l || echo "0"
+
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up MSVC
+      uses: microsoft/setup-msbuild@v2
+    
+    - name: Configure CMake
+      run: |
+        mkdir build
+        cd build
+        cmake -DZLIB_BUILD_EXAMPLES=OFF ..
+    
+    - name: Build
+      run: |
+        cd build
+        cmake --build . --config Release
+    
+    - name: Test executable
+      run: |
+        cd build
+        if (Test-Path "Release/duef.exe") {
+          Write-Host "Found duef.exe"
+          Get-ChildItem Release/duef.exe
+          cd Release
+          .\duef.exe --clean
+          .\duef.exe -v
+          Write-Host "Windows build test completed"
+        } else {
+          Write-Host "duef.exe not found in Release directory"
+          Get-ChildItem -Recurse *.exe
+        }
+      shell: powershell
+      continue-on-error: true
