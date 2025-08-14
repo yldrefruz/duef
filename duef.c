@@ -108,7 +108,7 @@ void parse_arguments(int argc, char **argv)
                 }
                 else
                 {
-                    fprintf(stderr, "Option --file requires an argument\n\n");
+                    (void)fprintf(stderr, "Option --file requires an argument\n\n");
                     print_usage(argv[0]);
                     exit(EXIT_FAILURE);
                 }
@@ -141,7 +141,7 @@ void parse_arguments(int argc, char **argv)
                 file_path = strdup(argv[i]);
                 if (!file_path)
                 {
-                    fprintf(stderr, "Memory allocation failed for file path\n");
+                    (void)fprintf(stderr, "Memory allocation failed for file path\n");
                     exit(EXIT_FAILURE);
                 }
                 print_verbose("File path set to: %s\n", file_path);
@@ -186,8 +186,6 @@ void print_usage(const char *program_name)
     printf("  Default file: CrashFile.uecrash (if no file specified)\n");
 }
 
-void write_file(const FAnsiCharStr *directory, const FFile *file);
-
 int main(int argc, char *argv[])
 {
     parse_arguments(argc, argv);
@@ -208,11 +206,11 @@ int main(int argc, char *argv[])
     if (inflateInit(&strm) != Z_OK)
     {
         (void)fprintf(stderr, "Failed to initialize zlib stream\n");
-        fclose(input_file);
+        (void)fclose(input_file);
         return 1; // Initialization failed
     }
 
-    unsigned char in[4096];
+    unsigned char input_buffer[4096];
     unsigned char out[4096];
     int ret;
     size_t total_out = 0;
@@ -229,19 +227,19 @@ int main(int argc, char *argv[])
 
     do
     {
-        strm.avail_in = fread(in, 1, sizeof(in), input_file);
+        strm.avail_in = fread(input_buffer, 1, sizeof(input_buffer), input_file);
         if (ferror(input_file))
         {
-            fprintf(stderr, "Error reading input file\n");
-            inflateEnd(&strm);
-            fclose(input_file);
+            (void)fprintf(stderr, "Error reading input file\n");
+            (void)inflateEnd(&strm);
+            (void)fclose(input_file);
             free(decompressed);
             return 1;
         }
         if (strm.avail_in == 0) {
             break;
         }
-        strm.next_in = in;
+        strm.next_in = input_buffer;
 
         do
         {
@@ -250,9 +248,9 @@ int main(int argc, char *argv[])
             ret = inflate(&strm, Z_NO_FLUSH);
             if (ret == Z_STREAM_ERROR || ret == Z_DATA_ERROR || ret == Z_MEM_ERROR)
             {
-                fprintf(stderr, "Decompression error\n");
-                inflateEnd(&strm);
-                fclose(input_file);
+                (void)fprintf(stderr, "Decompression error\n");
+                (void)inflateEnd(&strm);
+                (void)fclose(input_file);
                 free(decompressed);
                 return 1;
             }
@@ -264,8 +262,8 @@ int main(int argc, char *argv[])
                 if (!tmp)
                 {
                     (void)fprintf(stderr, "Memory reallocation failed\n");
-                    inflateEnd(&strm);
-                    fclose(input_file);
+                    (void)inflateEnd(&strm);
+                    (void)fclose(input_file);
                     free(decompressed);
                     return 1;
                 }
@@ -276,8 +274,8 @@ int main(int argc, char *argv[])
         } while (strm.avail_out == 0);
     } while (ret != Z_STREAM_END);
 
-    inflateEnd(&strm);
-    fclose(input_file);
+    (void)inflateEnd(&strm);
+    (void)fclose(input_file);
 
     if (ret != Z_STREAM_END)
     {
@@ -381,13 +379,13 @@ void write_file(const FAnsiCharStr *directory, const FFile *file)
     FILE *output_file = fopen(file_path, "wb");
     if (!output_file)
     {
-        fprintf(stderr, "Error opening output file %s\n", file_path);
+        (void)fprintf(stderr, "Error opening output file %s\n", file_path);
         return;
     }
     size_t written = fwrite(file->file_data, 1, file->file_size, output_file);
     if (written != file->file_size)
     {
-        fprintf(stderr, "Error writing to output file\n");
+        (void)fprintf(stderr, "Error writing to output file\n");
     }
     (void)fclose(output_file);
 }
