@@ -43,8 +43,9 @@ void parse_arguments(int argc, char **argv)
             // the combinable options here
             for (int j = 1; argv[i][j] != '\0'; j++)
             {
-                if (exit_j_loop)
+                if (exit_j_loop) {
                     break; // If we are expecting the next argument, break out of the loop
+                }
                 switch (argv[i][j])
                 {
                 case 'v':
@@ -58,14 +59,14 @@ void parse_arguments(int argc, char **argv)
                         print_verbose("File path set to: %s\n", file_path);
                         if (!file_path)
                         {
-                            fprintf(stderr, "Memory allocation failed for file path\n");
+                            (void)fprintf(stderr, "Memory allocation failed for file path\n");
                             exit(EXIT_FAILURE);
                         }
                         exit_j_loop = true; // Set the flag to true to skip the next argument
                     }
                     else
                     {
-                        fprintf(stderr, "Option -f requires an argument\n\n");
+                        (void)fprintf(stderr, "Option -f requires an argument\n\n");
                         print_usage(argv[0]);
                         exit(EXIT_FAILURE);
                     }
@@ -79,7 +80,7 @@ void parse_arguments(int argc, char **argv)
                     exit(EXIT_SUCCESS);
                     break;
                 default:
-                    fprintf(stderr, "Unknown option: -%c\n\n", argv[i][j]);
+                    (void)fprintf(stderr, "Unknown option: -%c\n\n", argv[i][j]);
                     print_usage(argv[0]);
                     exit(EXIT_FAILURE);
                 }
@@ -101,7 +102,7 @@ void parse_arguments(int argc, char **argv)
                     print_verbose("File path set to: %s\n", file_path);
                     if (!file_path)
                     {
-                        fprintf(stderr, "Memory allocation failed for file path\n");
+                        (void)fprintf(stderr, "Memory allocation failed for file path\n");
                         exit(EXIT_FAILURE);
                     }
                 }
@@ -127,7 +128,7 @@ void parse_arguments(int argc, char **argv)
             }
             else
             {
-                fprintf(stderr, "Unknown option: %s\n\n", argv[i]);
+                (void)fprintf(stderr, "Unknown option: %s\n\n", argv[i]);
                 print_usage(argv[0]);
                 exit(EXIT_FAILURE);
             }
@@ -147,7 +148,7 @@ void parse_arguments(int argc, char **argv)
             }
             else
             {
-                fprintf(stderr, "Multiple file arguments provided. Only one file can be processed at a time.\n\n");
+                (void)fprintf(stderr, "Multiple file arguments provided. Only one file can be processed at a time.\n\n");
                 print_usage(argv[0]);
                 exit(EXIT_FAILURE);
             }
@@ -199,14 +200,14 @@ int main(int argc, char *argv[])
     FILE *input_file = fopen(file_path ? file_path : "CrashFile.uecrash", "rb");
     if (!input_file)
     {
-        fprintf(stderr, "Error opening input file: %s\n", file_path ? file_path : "CrashFile.uecrash");
+        (void)fprintf(stderr, "Error opening input file: %s\n", file_path ? file_path : "CrashFile.uecrash");
         return 1; // File open failed
     }
 
     z_stream strm = {0};
     if (inflateInit(&strm) != Z_OK)
     {
-        fprintf(stderr, "Failed to initialize zlib stream\n");
+        (void)fprintf(stderr, "Failed to initialize zlib stream\n");
         fclose(input_file);
         return 1; // Initialization failed
     }
@@ -219,9 +220,9 @@ int main(int argc, char *argv[])
     unsigned char *decompressed = malloc(buffer_size);
     if (!decompressed)
     {
-        fprintf(stderr, "Memory allocation failed\n");
-        fclose(input_file);
-        inflateEnd(&strm);
+        (void)fprintf(stderr, "Memory allocation failed\n");
+        (void)fclose(input_file);
+        (void)inflateEnd(&strm);
         exit(EXIT_FAILURE);
         return EXIT_FAILURE;
     }
@@ -237,8 +238,9 @@ int main(int argc, char *argv[])
             free(decompressed);
             return 1;
         }
-        if (strm.avail_in == 0)
+        if (strm.avail_in == 0) {
             break;
+        }
         strm.next_in = in;
 
         do
@@ -261,7 +263,7 @@ int main(int argc, char *argv[])
                 unsigned char *tmp = realloc(decompressed, buffer_size);
                 if (!tmp)
                 {
-                    fprintf(stderr, "Memory reallocation failed\n");
+                    (void)fprintf(stderr, "Memory reallocation failed\n");
                     inflateEnd(&strm);
                     fclose(input_file);
                     free(decompressed);
@@ -279,7 +281,7 @@ int main(int argc, char *argv[])
 
     if (ret != Z_STREAM_END)
     {
-        fprintf(stderr, "Incomplete decompression\n");
+        (void)fprintf(stderr, "Incomplete decompression\n");
         free(decompressed);
         return 1;
     }
@@ -424,7 +426,7 @@ void create_crash_directory(FAnsiCharStr *directory_name)
     }
     if (_mkdir(dir_path) == -1 && errno != EEXIST)
     {
-        fprintf(stderr, "Error creating crash directory %s: %s\n", dir_path, strerror(errno));
+        (void)fprintf(stderr, "Error creating crash directory %s: %s\n", dir_path, strerror(errno));
         return;
     }
 #else
