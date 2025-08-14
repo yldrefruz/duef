@@ -8,16 +8,21 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
-#if _WIN32
+#ifdef _WIN32
 #include <windows.h> // For Windows-specific functions
 #include <direct.h>  // For _mkdir
+#include <io.h>      // For file operations
+#include <errno.h>   // For errno and EEXIST on Windows
+#ifndef PATH_MAX
+#define PATH_MAX MAX_PATH
+#endif
 #else
 #include <sys/stat.h> // For mkdir
-#include <sys/types.h>
 #include <limits.h> // For PATH_MAX
-#include <unistd.h> // For getcwd
+#ifndef PATH_MAX
+#define PATH_MAX 4096 // Fallback definition for PATH_MAX
 #endif
-#include <errno.h>
+#endif
 #include "stdbool.h"
 
 int g_is_verbose = false;
@@ -38,8 +43,9 @@ void parse_arguments(int argc, char **argv)
             // the combinable options here
             for (int j = 1; argv[i][j] != '\0'; j++)
             {
-                if (exit_j_loop)
+                if (exit_j_loop) {
                     break; // If we are expecting the next argument, break out of the loop
+                }
                 switch (argv[i][j])
                 {
                 case 'v':
@@ -53,14 +59,14 @@ void parse_arguments(int argc, char **argv)
                         print_verbose("File path set to: %s\n", file_path);
                         if (!file_path)
                         {
-                            fprintf(stderr, "Memory allocation failed for file path\n");
+                            (void)fprintf(stderr, "Memory allocation failed for file path\n");
                             exit(EXIT_FAILURE);
                         }
                         exit_j_loop = true; // Set the flag to true to skip the next argument
                     }
                     else
                     {
-                        fprintf(stderr, "Option -f requires an argument\n\n");
+                        (void)fprintf(stderr, "Option -f requires an argument\n\n");
                         print_usage(argv[0]);
                         exit(EXIT_FAILURE);
                     }
@@ -74,7 +80,7 @@ void parse_arguments(int argc, char **argv)
                     exit(EXIT_SUCCESS);
                     break;
                 default:
-                    fprintf(stderr, "Unknown option: -%c\n\n", argv[i][j]);
+                    (void)fprintf(stderr, "Unknown option: -%c\n\n", argv[i][j]);
                     print_usage(argv[0]);
                     exit(EXIT_FAILURE);
                 }
@@ -96,13 +102,13 @@ void parse_arguments(int argc, char **argv)
                     print_verbose("File path set to: %s\n", file_path);
                     if (!file_path)
                     {
-                        fprintf(stderr, "Memory allocation failed for file path\n");
+                        (void)fprintf(stderr, "Memory allocation failed for file path\n");
                         exit(EXIT_FAILURE);
                     }
                 }
                 else
                 {
-                    fprintf(stderr, "Option --file requires an argument\n\n");
+                    (void)fprintf(stderr, "Option --file requires an argument\n\n");
                     print_usage(argv[0]);
                     exit(EXIT_FAILURE);
                 }
@@ -122,7 +128,7 @@ void parse_arguments(int argc, char **argv)
             }
             else
             {
-                fprintf(stderr, "Unknown option: %s\n\n", argv[i]);
+                (void)fprintf(stderr, "Unknown option: %s\n\n", argv[i]);
                 print_usage(argv[0]);
                 exit(EXIT_FAILURE);
             }
@@ -135,14 +141,14 @@ void parse_arguments(int argc, char **argv)
                 file_path = strdup(argv[i]);
                 if (!file_path)
                 {
-                    fprintf(stderr, "Memory allocation failed for file path\n");
+                    (void)fprintf(stderr, "Memory allocation failed for file path\n");
                     exit(EXIT_FAILURE);
                 }
                 print_verbose("File path set to: %s\n", file_path);
             }
             else
             {
-                fprintf(stderr, "Multiple file arguments provided. Only one file can be processed at a time.\n\n");
+                (void)fprintf(stderr, "Multiple file arguments provided. Only one file can be processed at a time.\n\n");
                 print_usage(argv[0]);
                 exit(EXIT_FAILURE);
             }
@@ -180,8 +186,6 @@ void print_usage(const char *program_name)
     printf("  Default file: CrashFile.uecrash (if no file specified)\n");
 }
 
-void write_file(const FAnsiCharStr *directory, const FFile *file);
-
 int main(int argc, char *argv[])
 {
     parse_arguments(argc, argv);
@@ -194,19 +198,19 @@ int main(int argc, char *argv[])
     FILE *input_file = fopen(file_path ? file_path : "CrashFile.uecrash", "rb");
     if (!input_file)
     {
-        fprintf(stderr, "Error opening input file: %s\n", file_path ? file_path : "CrashFile.uecrash");
+        (void)fprintf(stderr, "Error opening input file: %s\n", file_path ? file_path : "CrashFile.uecrash");
         return 1; // File open failed
     }
 
     z_stream strm = {0};
     if (inflateInit(&strm) != Z_OK)
     {
-        fprintf(stderr, "Failed to initialize zlib stream\n");
-        fclose(input_file);
+        (void)fprintf(stderr, "Failed to initialize zlib stream\n");
+        (void)fclose(input_file);
         return 1; // Initialization failed
     }
 
-    unsigned char in[4096];
+    unsigned char input_buffer[4096];
     unsigned char out[4096];
     int ret;
     size_t total_out = 0;
@@ -214,27 +218,28 @@ int main(int argc, char *argv[])
     unsigned char *decompressed = malloc(buffer_size);
     if (!decompressed)
     {
-        fprintf(stderr, "Memory allocation failed\n");
-        fclose(input_file);
-        inflateEnd(&strm);
+        (void)fprintf(stderr, "Memory allocation failed\n");
+        (void)fclose(input_file);
+        (void)inflateEnd(&strm);
         exit(EXIT_FAILURE);
         return EXIT_FAILURE;
     }
 
     do
     {
-        strm.avail_in = fread(in, 1, sizeof(in), input_file);
+        strm.avail_in = fread(input_buffer, 1, sizeof(input_buffer), input_file);
         if (ferror(input_file))
         {
-            fprintf(stderr, "Error reading input file\n");
-            inflateEnd(&strm);
-            fclose(input_file);
+            (void)fprintf(stderr, "Error reading input file\n");
+            (void)inflateEnd(&strm);
+            (void)fclose(input_file);
             free(decompressed);
             return 1;
         }
-        if (strm.avail_in == 0)
+        if (strm.avail_in == 0) {
             break;
-        strm.next_in = in;
+        }
+        strm.next_in = input_buffer;
 
         do
         {
@@ -243,9 +248,9 @@ int main(int argc, char *argv[])
             ret = inflate(&strm, Z_NO_FLUSH);
             if (ret == Z_STREAM_ERROR || ret == Z_DATA_ERROR || ret == Z_MEM_ERROR)
             {
-                fprintf(stderr, "Decompression error\n");
-                inflateEnd(&strm);
-                fclose(input_file);
+                (void)fprintf(stderr, "Decompression error\n");
+                (void)inflateEnd(&strm);
+                (void)fclose(input_file);
                 free(decompressed);
                 return 1;
             }
@@ -256,9 +261,9 @@ int main(int argc, char *argv[])
                 unsigned char *tmp = realloc(decompressed, buffer_size);
                 if (!tmp)
                 {
-                    fprintf(stderr, "Memory reallocation failed\n");
-                    inflateEnd(&strm);
-                    fclose(input_file);
+                    (void)fprintf(stderr, "Memory reallocation failed\n");
+                    (void)inflateEnd(&strm);
+                    (void)fclose(input_file);
                     free(decompressed);
                     return 1;
                 }
@@ -269,12 +274,12 @@ int main(int argc, char *argv[])
         } while (strm.avail_out == 0);
     } while (ret != Z_STREAM_END);
 
-    inflateEnd(&strm);
-    fclose(input_file);
+    (void)inflateEnd(&strm);
+    (void)fclose(input_file);
 
     if (ret != Z_STREAM_END)
     {
-        fprintf(stderr, "Incomplete decompression\n");
+        (void)fprintf(stderr, "Incomplete decompression\n");
         free(decompressed);
         return 1;
     }
@@ -307,14 +312,21 @@ int main(int argc, char *argv[])
             resolve_app_file_path(read_file->file_header->directory_name, &read_file->file[i], file_buffer, sizeof(file_buffer));
             if (i > 0)
             {
-                strcat(files_combine_buffer, " ");
+                strncat(files_combine_buffer, " ", sizeof(files_combine_buffer) - strlen(files_combine_buffer) - 1);
             }
             if (strchr(file_buffer, ' ') != NULL || strchr(file_buffer, '\n') != NULL || strchr(file_buffer, '\t') != NULL)
             {
                 // If the file path contains spaces or newlines, wrap it in quotes
-                snprintf(file_buffer, sizeof(file_buffer), "\"%s\"", file_buffer);
+                char temp_buffer[2052]; // Larger buffer to accommodate quotes
+                size_t path_len = strlen(file_buffer);
+                if (path_len < sizeof(temp_buffer) - 3) // -3 for quotes and null terminator
+                {
+                    (void)snprintf(temp_buffer, sizeof(temp_buffer), "\"%s\"", file_buffer);
+                    strncpy(file_buffer, temp_buffer, sizeof(file_buffer) - 1);
+                    file_buffer[sizeof(file_buffer) - 1] = '\0';
+                }
             }
-            strcat(files_combine_buffer, file_buffer);
+            strncat(files_combine_buffer, file_buffer, sizeof(files_combine_buffer) - strlen(files_combine_buffer) - 1);
             files_combine_length += strlen(file_buffer) + 1; // +1 for the space or null terminator
         }
     }
@@ -328,7 +340,7 @@ int main(int argc, char *argv[])
         resolve_app_directory_path(read_file->file_header->directory_name, directory_path, sizeof(directory_path));
         printf("%s\n", directory_path); // print the directory path to the standard output for piping
     }
-    fflush(stdout); // Ensure the output is flushed immediately
+    (void)fflush(stdout); // Ensure the output is flushed immediately
     free(decompressed);
     decompressed = NULL;
     UECrashFile_Destroy(read_file);
@@ -342,7 +354,7 @@ void resolve_app_directory_path(const FAnsiCharStr *directory_name, char *buffer
 #ifdef _WIN32
     snprintf(buffer, buffer_size, "%s\\%.*s", get_app_directory(), directory_name->length, directory_name->content);
 #else
-    snprintf(buffer, buffer_size, "%s/%.*s", get_app_directory(), directory_name->length, directory_name->content);
+    (void)snprintf(buffer, buffer_size, "%s/%.*s", get_app_directory(), directory_name->length, directory_name->content);
 #endif
 }
 
@@ -351,7 +363,7 @@ void resolve_app_file_path(const FAnsiCharStr *directory, const FFile *file, cha
 #ifdef _WIN32
     snprintf(buffer, buffer_size, "%s\\%s\\%.*s", get_app_directory(), directory->content, directory->length, file->file_name->content);
 #else
-    snprintf(buffer, buffer_size, "%s/%s/%.*s", get_app_directory(), directory->content, directory->length, file->file_name->content);
+    (void)snprintf(buffer, buffer_size, "%s/%s/%.*s", get_app_directory(), directory->content, directory->length, file->file_name->content);
 #endif
 }
 
@@ -367,31 +379,27 @@ void write_file(const FAnsiCharStr *directory, const FFile *file)
     FILE *output_file = fopen(file_path, "wb");
     if (!output_file)
     {
-        fprintf(stderr, "Error opening output file %s\n", file_path);
+        (void)fprintf(stderr, "Error opening output file %s\n", file_path);
         return;
     }
     size_t written = fwrite(file->file_data, 1, file->file_size, output_file);
     if (written != file->file_size)
     {
-        fprintf(stderr, "Error writing to output file\n");
+        (void)fprintf(stderr, "Error writing to output file\n");
     }
-    fclose(output_file);
+    (void)fclose(output_file);
 }
 bool g_cached_app_directory = false;
-#ifdef _WIN32
-char g_app_directory[MAX_PATH] = {0};
-#else
 char g_app_directory[PATH_MAX] = {0};
-#endif
 
 char *get_app_directory()
 {
     if (!g_cached_app_directory)
     {
 #ifdef _WIN32
-        snprintf(g_app_directory, sizeof(g_app_directory), "%s\\duef", getenv("LOCALAPPDATA"));
+        (void)snprintf(g_app_directory, sizeof(g_app_directory), "%s\\duef", getenv("LOCALAPPDATA"));
 #else
-        snprintf(g_app_directory, sizeof(g_app_directory), "%s/.duef", getenv("HOME"));
+        (void)snprintf(g_app_directory, sizeof(g_app_directory), "%s/.duef", getenv("HOME"));
 #endif
     }
     return g_app_directory;
@@ -400,15 +408,14 @@ char *get_app_directory()
 // maybe make it so we use the mkdir command with system() instead of using the mkdir function directly
 void create_crash_directory(FAnsiCharStr *directory_name)
 {
-#ifdef _WIN32
-    char dir_path[MAX_PATH];
-    snprintf(dir_path, sizeof(dir_path), "%s\\%.*s", get_app_directory(), directory_name->length, directory_name->content);
-    print_verbose("Creating directory: %s\n", dir_path);
-#else
     char dir_path[PATH_MAX];
-    snprintf(dir_path, sizeof(dir_path), "%s/%.*s", get_app_directory(), directory_name->length, directory_name->content);
-    print_verbose("Creating directory: %s\n", dir_path);
+#ifdef _WIN32
+    (void)snprintf(dir_path, sizeof(dir_path), "%s\\%.*s", get_app_directory(), directory_name->length, directory_name->content);
+#else
+    (void)snprintf(dir_path, sizeof(dir_path), "%s/%.*s", get_app_directory(), directory_name->length, directory_name->content);
 #endif
+    print_verbose("Creating directory: %s\n", dir_path);
+
 #ifdef _WIN32
     if (_mkdir(get_app_directory()) == -1 && errno != EEXIST)
     {
@@ -417,10 +424,11 @@ void create_crash_directory(FAnsiCharStr *directory_name)
     }
     if (_mkdir(dir_path) == -1 && errno != EEXIST)
     {
-        fprintf(stderr, "Error creating crash directory %s: %s\n", dir_path, strerror(errno));
+        (void)fprintf(stderr, "Error creating crash directory %s: %s\n", dir_path, strerror(errno));
         return;
     }
 #else
+    mkdir(get_app_directory(), 0755);  // Create parent directory first
     mkdir(dir_path, 0755);
 #endif
 }
@@ -430,11 +438,11 @@ void delete_crash_collection_directory()
 {
 #ifdef _WIN32
     char command_buffer[1024];
-    sprintf(command_buffer, "rmdir /S /Q \"%s\"", get_app_directory());
+    (void)snprintf(command_buffer, sizeof(command_buffer), "rmdir /S /Q \"%s\"", get_app_directory());
     system(command_buffer);
 #else
     char command_buffer[1024];
-    snprintf(command_buffer, sizeof(command_buffer), "rm -r \"%s\"", get_app_directory());
+    (void)snprintf(command_buffer, sizeof(command_buffer), "rm -r \"%s\"", get_app_directory());
     system(command_buffer); // no forcing here, be careful to not remove root
 #endif
 }
