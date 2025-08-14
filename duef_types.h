@@ -142,6 +142,16 @@ void File_Destroy(FFile *file)
   }
 }
 
+void File_DestroyContents(FFile *file)
+{
+  if (file)
+  {
+    AnsiCharStr_Destroy(file->file_name);
+    free(file->file_data);
+    // Don't free the file struct itself as it's part of an array
+  }
+}
+
 struct FUECrashFile *UECrashFile_Read(uint8_t **data)
 {
   FUECrashFile *ue_crash_file = (FUECrashFile *)malloc(sizeof(FUECrashFile));
@@ -154,7 +164,9 @@ struct FUECrashFile *UECrashFile_Read(uint8_t **data)
   ue_crash_file->file = calloc(ue_crash_file->file_header->file_count, sizeof(FFile));
   for (int i = 0; i < ue_crash_file->file_header->file_count; i++)
   {
-    ue_crash_file->file[i] = *File_Read(data);
+    FFile *temp_file = File_Read(data);
+    ue_crash_file->file[i] = *temp_file;
+    free(temp_file); // Free the temporary FFile struct, but keep its contents
   }
   return ue_crash_file;
 }
@@ -163,11 +175,13 @@ void UECrashFile_Destroy(FUECrashFile *ue_crash_file)
 {
   if (ue_crash_file)
   {
+    int file_count = ue_crash_file->file_header->file_count;
     FileHeader_Destroy(ue_crash_file->file_header);
-    for (int i = 0; i < ue_crash_file->file_header->file_count; i++)
+    for (int i = 0; i < file_count; i++)
     {
-      File_Destroy(&ue_crash_file->file[i]);
+      File_DestroyContents(&ue_crash_file->file[i]);
     }
+    free(ue_crash_file->file);
     free(ue_crash_file);
   }
 }

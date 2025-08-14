@@ -312,7 +312,14 @@ int main(int argc, char *argv[])
             if (strchr(file_buffer, ' ') != NULL || strchr(file_buffer, '\n') != NULL || strchr(file_buffer, '\t') != NULL)
             {
                 // If the file path contains spaces or newlines, wrap it in quotes
-                snprintf(file_buffer, sizeof(file_buffer), "\"%s\"", file_buffer);
+                char temp_buffer[2052]; // Larger buffer to accommodate quotes
+                size_t path_len = strlen(file_buffer);
+                if (path_len < sizeof(temp_buffer) - 3) // -3 for quotes and null terminator
+                {
+                    snprintf(temp_buffer, sizeof(temp_buffer), "\"%s\"", file_buffer);
+                    strncpy(file_buffer, temp_buffer, sizeof(file_buffer) - 1);
+                    file_buffer[sizeof(file_buffer) - 1] = '\0';
+                }
             }
             strcat(files_combine_buffer, file_buffer);
             files_combine_length += strlen(file_buffer) + 1; // +1 for the space or null terminator
