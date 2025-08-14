@@ -12,14 +12,17 @@
 #include <windows.h> // For Windows-specific functions
 #include <direct.h>  // For _mkdir
 #include <io.h>      // For file operations
+#include <errno.h>   // For errno and EEXIST on Windows
 #ifndef PATH_MAX
 #define PATH_MAX MAX_PATH
 #endif
 #else
 #include <sys/stat.h> // For mkdir
 #include <limits.h> // For PATH_MAX
+#ifndef PATH_MAX
+#define PATH_MAX 4096 // Fallback definition for PATH_MAX
 #endif
-#include <errno.h>
+#endif
 #include "stdbool.h"
 
 int g_is_verbose = false;

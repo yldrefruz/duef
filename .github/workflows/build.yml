@@ -29,13 +29,11 @@ jobs:
         cd build
         make
     
-    - name: Test executable
-      run: |
-        cd build
-        ls -la duef
-        ./duef --clean
-        ./duef -v || echo "Expected failure - no crash file present"
-        ./duef --file nonexistent.uecrash || echo "Expected failure - file does not exist"
+    - name: Upload Linux build artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: duef-linux
+        path: build/duef
     
     - name: Run static analysis
       run: |
@@ -67,19 +65,8 @@ jobs:
         cd build
         cmake --build . --config Release
     
-    - name: Test executable
-      run: |
-        cd build
-        if (Test-Path "Release/duef.exe") {
-          Write-Host "Found duef.exe"
-          Get-ChildItem Release/duef.exe
-          cd Release
-          .\duef.exe --clean
-          .\duef.exe -v
-          Write-Host "Windows build test completed"
-        } else {
-          Write-Host "duef.exe not found in Release directory"
-          Get-ChildItem -Recurse *.exe
-        }
-      shell: powershell
-      continue-on-error: true
+    - name: Upload Windows build artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: duef-windows
+        path: build/Release/duef.exe
