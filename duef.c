@@ -301,7 +301,11 @@ void resolve_app_file_path(const FAnsiCharStr *directory, const FFile *file, cha
 
 void write_file(const FAnsiCharStr *directory, const FFile *file)
 {
+#ifdef _WIN32
     char file_path[MAX_PATH];
+#else
+    char file_path[PATH_MAX];
+#endif
     resolve_app_file_path(directory, file, file_path, sizeof(file_path));
 
     FILE *output_file = fopen(file_path, "wb");
@@ -346,7 +350,7 @@ void create_crash_directory(FAnsiCharStr *directory_name)
     print_verbose("Creating directory: %s\n", dir_path);
 #else
     char dir_path[PATH_MAX];
-    snprintf(dir_path, sizeof(dir_path), "%s/%.s", get_app_directory(), directory_name->length, directory_name->content);
+    snprintf(dir_path, sizeof(dir_path), "%s/%.*s", get_app_directory(), directory_name->length, directory_name->content);
     print_verbose("Creating directory: %s\n", dir_path);
 #endif
 #ifdef _WIN32

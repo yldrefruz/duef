@@ -46,3 +46,21 @@ duef doesn't magically understand when you are done with the files and remove th
 ```powershell
 duef --clean
 ```
+
+## Building
+
+The project supports both CMake and Make for building:
+
+### Using Make (recommended for simplicity)
+```bash
+make          # Build duef
+make clean    # Clean build artifacts
+make help     # Show available targets
+```
+
+### Using CMake
+```bash
+mkdir build && cd build
+cmake -DZLIB_BUILD_EXAMPLES=OFF ..
+make
+```
