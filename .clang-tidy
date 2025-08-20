@@ -8,9 +8,7 @@ Checks: >
   performance-*,
   portability-*,
   readability-*,
-  -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling,
-  -readability-magic-numbers,
-  -misc-no-recursion
+  -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling
 
 CheckOptions:
   - key: readability-identifier-naming.VariableCase

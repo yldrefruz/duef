@@ -38,12 +38,8 @@ jobs:
     - name: Run static analysis
       run: |
         echo "Running static analysis..."
-        clang-tidy duef.c -- -I./zlib-1.3.1 -D_CRT_NONSTDC_NO_WARNINGS -D_CRT_SECURE_NO_WARNINGS > static-analysis.log 2>&1 || true
+        clang-tidy duef.c -- -I./zlib-1.3.1 -D_CRT_NONSTDC_NO_WARNINGS -D_CRT_SECURE_NO_WARNINGS || true
         echo "Static analysis completed."
-        echo "Warning count:"
-        grep "warning:" static-analysis.log | wc -l || echo "0"
-        echo "Critical errors (should be 0):"
-        grep -i "error:" static-analysis.log | wc -l || echo "0"
 
   build-windows:
     runs-on: windows-latest

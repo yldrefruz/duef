@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+
 typedef struct FAnsiCharStr
 {
   int32_t length;
@@ -32,158 +33,17 @@ typedef struct FUECrashFile
   FFile *file;
 } FUECrashFile;
 
-int32_t read_int32(uint8_t **data)
-{
-  int32_t value = *(int32_t *)(*data);
-  (*data) += sizeof(int32_t);
-  return value;
-}
-
-char read_char(uint8_t **data)
-{
-  char value = (char)(**data);
-  (*data)++;
-  return value;
-}
-
-FAnsiCharStr *AnsiCharStr_Read(uint8_t **data)
-{
-  FAnsiCharStr *str = (FAnsiCharStr *)malloc(sizeof(FAnsiCharStr));
-  if (!str)
-  {
-    fprintf(stderr, "Memory allocation failed\n");
-    exit(EXIT_FAILURE);
-  }
-  str->length = read_int32(data);
-  str->content = (char *)malloc(str->length + 1);
-  if (!str->content)
-  {
-    fprintf(stderr, "Memory allocation for content failed\n");
-    free(str);
-    exit(EXIT_FAILURE);
-  }
-  for (int i = 0; i < str->length; i++)
-  {
-    str->content[i] = read_char(data);
-  }
-  return str;
-}
-
-void AnsiCharStr_Destroy(FAnsiCharStr *str)
-{
-  if (str)
-  {
-    free(str->content);
-    free(str);
-  }
-}
-
-FFileHeader *FileHeader_Read(uint8_t **data)
-{
-  FFileHeader *header = (FFileHeader *)malloc(sizeof(FFileHeader));
-  if (!header)
-  {
-    fprintf(stderr, "Memory allocation for FFileHeader failed\n");
-    exit(EXIT_FAILURE);
-  }
-  header->version[0] = read_char(data);
-  header->version[1] = read_char(data);
-  header->version[2] = read_char(data);
-
-  header->directory_name = AnsiCharStr_Read(data);
-  header->file_name = AnsiCharStr_Read(data);
-
-  header->uncompressed_size = *(int32_t *)(*data);
-  (*data) += sizeof(int32_t);
-
-  header->file_count = *(int32_t *)(*data);
-  (*data) += sizeof(int32_t);
-
-  return header;
-}
-
-void FileHeader_Destroy(FFileHeader *header)
-{
-  if (header)
-  {
-    AnsiCharStr_Destroy(header->directory_name);
-    AnsiCharStr_Destroy(header->file_name);
-    free(header);
-  }
-}
-
-FFile *File_Read(uint8_t **data)
-{
-  FFile *file = (FFile *)malloc(sizeof(FFile));
-  if (!file)
-  {
-    fprintf(stderr, "Memory allocation for FFile failed\n");
-    exit(EXIT_FAILURE);
-  }
-  file->current_file_index = read_int32(data);
-  file->file_name = AnsiCharStr_Read(data);
-  file->file_size = read_int32(data);
-  file->file_data = (uint8_t *)malloc(file->file_size);
-  for (int i = 0; i < file->file_size; i++)
-  {
-    file->file_data[i] = read_char(data);
-  }
-
-  return file;
-}
-
-void File_Destroy(FFile *file)
-{
-  if (file)
-  {
-    AnsiCharStr_Destroy(file->file_name);
-    free(file->file_data);
-    free(file);
-  }
-}
-
-void File_DestroyContents(FFile *file)
-{
-  if (file)
-  {
-    AnsiCharStr_Destroy(file->file_name);
-    free(file->file_data);
-    // Don't free the file struct itself as it's part of an array
-  }
-}
-
-struct FUECrashFile *UECrashFile_Read(uint8_t **data)
-{
-  FUECrashFile *ue_crash_file = (FUECrashFile *)malloc(sizeof(FUECrashFile));
-  if (!ue_crash_file)
-  {
-    fprintf(stderr, "Memory allocation for FUECrashFile failed\n");
-    exit(EXIT_FAILURE);
-  }
-  ue_crash_file->file_header = FileHeader_Read(data);
-  ue_crash_file->file = calloc(ue_crash_file->file_header->file_count, sizeof(FFile));
-  for (int i = 0; i < ue_crash_file->file_header->file_count; i++)
-  {
-    FFile *temp_file = File_Read(data);
-    ue_crash_file->file[i] = *temp_file;
-    free(temp_file); // Free the temporary FFile struct, but keep its contents
-  }
-  return ue_crash_file;
-}
-
-void UECrashFile_Destroy(FUECrashFile *ue_crash_file)
-{
-  if (ue_crash_file)
-  {
-    int file_count = ue_crash_file->file_header->file_count;
-    FileHeader_Destroy(ue_crash_file->file_header);
-    for (int i = 0; i < file_count; i++)
-    {
-      File_DestroyContents(&ue_crash_file->file[i]);
-    }
-    free(ue_crash_file->file);
-    free(ue_crash_file);
-  }
-}
+// Function declarations
+int32_t read_int32(uint8_t **data);
+char read_char(uint8_t **data);
+FAnsiCharStr *AnsiCharStr_Read(uint8_t **data);
+void AnsiCharStr_Destroy(FAnsiCharStr *string);
+FFileHeader *FileHeader_Read(uint8_t **data);
+void FileHeader_Destroy(FFileHeader *header);
+FFile *File_Read(uint8_t **data);
+void File_Destroy(FFile *file);
+void File_DestroyContents(FFile *file);
+FUECrashFile *UECrashFile_Read(uint8_t **data);
+void UECrashFile_Destroy(FUECrashFile *ue_crash_file);
 
 #endif
