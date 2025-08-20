@@ -1,0 +1,68 @@
+name: Cross-Platform Build
+
+on:
+  push:
+    branches: [ main, develop, 'copilot/**' ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake build-essential clang-tidy
+    
+    - name: Configure CMake
+      run: |
+        mkdir build
+        cd build
+        cmake -DZLIB_BUILD_EXAMPLES=OFF ..
+    
+    - name: Build
+      run: |
+        cd build
+        make
+    
+    - name: Upload Linux build artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: duef-linux
+        path: build/duef
+    
+    - name: Run static analysis
+      run: |
+        echo "Running static analysis..."
+        clang-tidy duef.c -- -I./zlib-1.3.1 -D_CRT_NONSTDC_NO_WARNINGS -D_CRT_SECURE_NO_WARNINGS || true
+        echo "Static analysis completed."
+
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up MSVC
+      uses: microsoft/setup-msbuild@v2
+    
+    - name: Configure CMake
+      run: |
+        mkdir build
+        cd build
+        cmake -DZLIB_BUILD_EXAMPLES=OFF ..
+    
+    - name: Build
+      run: |
+        cd build
+        cmake --build . --config Release
+    
+    - name: Upload Windows build artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: duef-windows
+        path: build/Release/duef.exe
