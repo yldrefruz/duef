@@ -8,6 +8,8 @@
 #include <string.h>
 #include <stdint.h>
 
+#define STATIC_DIR_NAME "static"
+
 DecompressionResult decompress_file(FILE *input_file)
 {
     DecompressionResult result = {NULL, 0, 1}; // Initialize with error status
@@ -105,7 +107,7 @@ void cleanup_decompression_result(DecompressionResult *result)
     }
 }
 
-void build_file_output_string(const FUECrashFile *crash_file, char *files_combine_buffer, size_t buffer_size)
+void build_file_output_string(const FUECrashFile *crash_file, const FAnsiCharStr *dir, char *files_combine_buffer, size_t buffer_size)
 {
     memset(files_combine_buffer, 0, buffer_size);
     
@@ -114,7 +116,7 @@ void build_file_output_string(const FUECrashFile *crash_file, char *files_combin
         if (g_print_mode_file)
         {
             char file_buffer[2048];
-            resolve_app_file_path(crash_file->file_header->directory_name, &crash_file->file[i], file_buffer, sizeof(file_buffer));
+            resolve_app_file_path(dir, &crash_file->file[i], file_buffer, sizeof(file_buffer));
             
             if (i > 0)
             {
@@ -165,14 +167,14 @@ void process_crash_files(const DecompressionResult *decompression, const char *i
     log_verbose("Uncompressed size: %d bytes\n", read_file->file_header->uncompressed_size);
     log_verbose("File count: %d\n", read_file->file_header->file_count);
 
-    FAnsiCharStr static_dir;
+    FAnsiCharStr fixed_dir;
     FAnsiCharStr *effective_dir;
     if (g_static_mode)
     {
-        static_dir.content = "static";
-        static_dir.length = (int32_t)strlen("static");
-        effective_dir = &static_dir;
-        log_verbose("Static mode: using directory 'static'\n");
+        fixed_dir.content = STATIC_DIR_NAME;
+        fixed_dir.length = (int32_t)(sizeof(STATIC_DIR_NAME) - 1);
+        effective_dir = &fixed_dir;
+        log_verbose("Static mode: using directory '" STATIC_DIR_NAME "'\n");
     }
     else
     {
@@ -192,37 +194,26 @@ void process_crash_files(const DecompressionResult *decompression, const char *i
         write_file(effective_dir, &read_file->file[i]);
     }
     
-    if (g_static_mode)
-    {
-        FUECrashFile tmp_crash_file;
-        FFileHeader tmp_header;
-        tmp_header = *read_file->file_header;
-        tmp_header.directory_name = effective_dir;
-        tmp_crash_file.file_header = &tmp_header;
-        tmp_crash_file.file = read_file->file;
-        output_results(&tmp_crash_file);
-    }
-    else
-    {
-        output_results(read_file);
-    }
+    output_results(read_file, g_static_mode ? effective_dir : NULL);
     
     UECrashFile_Destroy(read_file);
     log_verbose("All files written successfully.\n");
 }
 
-void output_results(const FUECrashFile *crash_file)
+void output_results(const FUECrashFile *crash_file, const FAnsiCharStr *dir_override)
 {
+    const FAnsiCharStr *effective_dir = dir_override ? dir_override : crash_file->file_header->directory_name;
+
     if (g_print_mode_file)
     {
         char files_combine_buffer[1024 * 24];
-        build_file_output_string(crash_file, files_combine_buffer, sizeof(files_combine_buffer));
+        build_file_output_string(crash_file, effective_dir, files_combine_buffer, sizeof(files_combine_buffer));
         log_info("%s\n", files_combine_buffer);
     }
     else
     {
         char directory_path[2048];
-        resolve_app_directory_path(crash_file->file_header->directory_name, directory_path, sizeof(directory_path));
+        resolve_app_directory_path(effective_dir, directory_path, sizeof(directory_path));
         log_info("%s\n", directory_path);
     }
     

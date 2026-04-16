@@ -17,6 +17,6 @@ void cleanup_decompression_result(DecompressionResult *result);
 
 // File processing functions
 void process_crash_files(const DecompressionResult *decompression, const char *input_filename);
-void output_results(const FUECrashFile *crash_file);
+void output_results(const FUECrashFile *crash_file, const FAnsiCharStr *dir_override);
 
 #endif // DUEF_FILE_OPS_H
