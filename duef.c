@@ -82,9 +82,9 @@ void resolve_app_directory_path(const FAnsiCharStr *directory_name, char *buffer
 void resolve_app_file_path(const FAnsiCharStr *directory, const FFile *file, char *buffer, size_t buffer_size)
 {
 #ifdef _WIN32
-    snprintf(buffer, buffer_size, "%s\\%s\\%.*s", get_app_directory(), directory->content, directory->length, file->file_name->content);
+    snprintf(buffer, buffer_size, "%s\\%s\\%.*s", get_app_directory(), directory->content, file->file_name->length, file->file_name->content);
 #else
-    snprintf(buffer, buffer_size, "%s/%s/%.*s", get_app_directory(), directory->content, directory->length, file->file_name->content);
+    snprintf(buffer, buffer_size, "%s/%s/%.*s", get_app_directory(), directory->content, file->file_name->length, file->file_name->content);
 #endif
 }
 
