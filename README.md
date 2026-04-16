@@ -41,6 +41,20 @@ duef -vif ./Crashreport.uecrash
 ```
 Uses verbose printing (-v option). Will print details about file, compressed files and process to the stderr.
 
+### Static directory
+By default, duef extracts each crash into a unique subdirectory derived from the crash file's internal directory name.
+Use the `-s` / `--static` flag to extract all crashes to a single fixed `static` subdirectory instead.
+This makes the output location predictable — useful when you always want files at the same path, e.g.:
+- Windows: `%LocalAppData%\duef\static\UEMinidump.dmp`
+- Unix: `~/.duef/static/UEMinidump.dmp`
+
+```powershell
+duef -s -f ./CrashReport.uecrash
+# or
+duef --static -f ./CrashReport.uecrash
+```
+Note: each extraction overwrites the previous files in the `static` directory.
+
 ### Cleanup
 duef doesn't magically understand when you are done with the files and remove them, instead you should run command below periodically (per week would probably be enough or after you are done with each crash) to remove collected crashes.
 ```powershell
