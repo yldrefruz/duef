@@ -9,6 +9,7 @@
 // Global variables for command line arguments
 extern int g_is_verbose;
 int g_print_mode_file = false;
+int g_static_mode = false;
 char *file_path = NULL;
 
 void print_usage(const char *program_name)
@@ -20,11 +21,13 @@ void print_usage(const char *program_name)
     printf("  -v, --verbose     Enable verbose output to stderr\n");
     printf("  -f, --file FILE   Specify .uecrash file to process\n");
     printf("  -i                Print individual file paths instead of directory path\n");
+    printf("  -s, --static      Extract to a fixed 'static' directory instead of a crash-specific one\n");
     printf("      --clean       Remove all extracted files from ~/.duef directory\n\n");
     printf("Examples:\n");
     printf("  %s CrashReport.uecrash     # Decompress crash file\n", program_name);
     printf("  %s -v -f crash.uecrash     # Decompress with verbose output\n", program_name);
     printf("  %s -i crash.uecrash        # Print individual file paths\n", program_name);
+    printf("  %s -s crash.uecrash        # Extract to static directory\n", program_name);
     printf("  %s --clean                 # Clean up extracted files\n\n", program_name);
     printf("Output:\n");
     printf("  On Unix: Files extracted to ~/.duef/<directory>/\n");
@@ -67,6 +70,10 @@ void handle_single_short_option(char option, int *i, int argc, char **argv, bool
     case 'i':
         g_print_mode_file = true;
         print_verbose("Print mode file enabled.\n");
+        break;
+    case 's':
+        g_static_mode = true;
+        print_verbose("Static output directory enabled.\n");
         break;
     case 'h':
         print_usage(argv[0]);
@@ -143,6 +150,11 @@ void handle_long_options(char *arg, int *i, int argc, char **argv)
     else if (strcmp(arg, "--clean") == 0)
     {
         handle_clean_option();
+    }
+    else if (strcmp(arg, "--static") == 0)
+    {
+        g_static_mode = true;
+        print_verbose("Static output directory enabled.\n");
     }
     else
     {

@@ -6,6 +6,7 @@
 // Global variables for command line arguments
 extern int g_is_verbose;
 extern int g_print_mode_file;
+extern int g_static_mode;
 extern char *file_path;
 
 // Function declarations for argument parsing

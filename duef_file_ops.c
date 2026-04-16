@@ -164,8 +164,22 @@ void process_crash_files(const DecompressionResult *decompression, const char *i
     log_verbose("File name: %s\n", read_file->file_header->file_name);
     log_verbose("Uncompressed size: %d bytes\n", read_file->file_header->uncompressed_size);
     log_verbose("File count: %d\n", read_file->file_header->file_count);
-    
-    create_crash_directory(read_file->file_header->directory_name);
+
+    FAnsiCharStr static_dir;
+    FAnsiCharStr *effective_dir;
+    if (g_static_mode)
+    {
+        static_dir.content = "static";
+        static_dir.length = (int32_t)strlen("static");
+        effective_dir = &static_dir;
+        log_verbose("Static mode: using directory 'static'\n");
+    }
+    else
+    {
+        effective_dir = read_file->file_header->directory_name;
+    }
+
+    create_crash_directory(effective_dir);
     log_verbose("Files in the crash report:\n");
     
     for (int i = 0; i < read_file->file_header->file_count; i++)
@@ -175,10 +189,23 @@ void process_crash_files(const DecompressionResult *decompression, const char *i
                     read_file->file[i].file_name->length, 
                     read_file->file[i].file_name->content, 
                     read_file->file[i].file_size);
-        write_file(read_file->file_header->directory_name, &read_file->file[i]);
+        write_file(effective_dir, &read_file->file[i]);
     }
     
-    output_results(read_file);
+    if (g_static_mode)
+    {
+        FUECrashFile tmp_crash_file;
+        FFileHeader tmp_header;
+        tmp_header = *read_file->file_header;
+        tmp_header.directory_name = effective_dir;
+        tmp_crash_file.file_header = &tmp_header;
+        tmp_crash_file.file = read_file->file;
+        output_results(&tmp_crash_file);
+    }
+    else
+    {
+        output_results(read_file);
+    }
     
     UECrashFile_Destroy(read_file);
     log_verbose("All files written successfully.\n");
